@@ -18,7 +18,8 @@ export default function Sidebar({ page, setPage }) {
   return (
     <Box className="sidebar">
       <Box className="brand">
-        <Box className="brand-mark"><StorefrontOutlined /></Box>
+        <Box className="">
+          <img src="build/icon.png" style={{height:"50px", borderRadius:"50px"}}/></Box>
         <Box>
           <Typography className="brand-name">RS-Mall</Typography>
           <Typography className="brand-caption">BILLING SOFTWARE</Typography>
