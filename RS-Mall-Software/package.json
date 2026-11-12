@@ -1,0 +1,62 @@
+{
+  "name": "rs-mall-billing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline desktop billing and point-of-sale software for RS-Mall",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "node electron/dev.cjs",
+    "build": "vite build",
+    "test": "node tests/run-electron-tests.cjs",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "node scripts/ensure-windows-build.cjs && npm run build && electron-builder --win nsis --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.13.5",
+    "@emotion/styled": "^11.13.5",
+    "@mui/icons-material": "^6.1.9",
+    "@mui/material": "^6.1.9",
+    "better-sqlite3": "^11.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "vite": "^6.0.1"
+  },
+  "build": {
+    "appId": "com.rsmall.billing",
+    "productName": "RS-Mall Billing Software",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "RS-Mall-Billing-Setup-${version}-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RS-Mall Billing Software",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    }
+  }
+}
