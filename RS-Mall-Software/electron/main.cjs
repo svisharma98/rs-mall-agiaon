@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const path = require("node:path");
-const { initializeDatabase } = require("./database.cjs");
+const { createBackup, initializeDatabase, restoreBackup } = require("./database.cjs");
 const { createServices } = require("./services.cjs");
 
 let database;
+let databasePath;
 let authenticated = false;
 let authenticatedUser = null;
 
@@ -48,6 +49,37 @@ function registerIpc(services) {
   protectedHandler("sales:get", (id) => services.sales.get(id));
   protectedHandler("settings:get", () => services.settings.get());
   protectedHandler("settings:save", (data) => services.settings.save(data));
+  protectedHandler("data:backup", async () => {
+    const { canceled, filePath } = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), {
+      title: "Back up RS-Mall data",
+      defaultPath: "RS-Mall-backup.sqlite",
+      filters: [{ name: "SQLite backup", extensions: ["sqlite"] }]
+    });
+    if (canceled) return { canceled: true };
+    await createBackup(database, filePath);
+    return { success: true };
+  });
+  protectedHandler("data:restore", async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
+      title: "Choose an RS-Mall backup",
+      properties: ["openFile"],
+      filters: [{ name: "SQLite backup", extensions: ["sqlite", "db"] }]
+    });
+    if (canceled || !filePaths[0]) return { canceled: true };
+    const { response } = await dialog.showMessageBox(BrowserWindow.getFocusedWindow(), {
+      type: "warning",
+      title: "Restore backup?",
+      message: "Restoring replaces all current RS-Mall data.",
+      detail: "Products, stock, sales, customers, settings, and the administrator account will be replaced by the selected backup.",
+      buttons: ["Restore backup", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true
+    });
+    if (response !== 0) return { canceled: true };
+    restoreBackup(database, filePaths[0], databasePath);
+    return { success: true };
+  });
 }
 
 function createWindow() {
@@ -57,6 +89,7 @@ function createWindow() {
     minWidth: 1120,
     minHeight: 700,
     backgroundColor: "#f4f6fa",
+    icon: path.join(__dirname, "../build/icon.png"),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -75,6 +108,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  databasePath = path.join(app.getPath("userData"), "rs-mall.sqlite");
   database = initializeDatabase(app.getPath("userData"));
   registerIpc(createServices(database));
   createWindow();

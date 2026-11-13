@@ -237,6 +237,31 @@ function App() {
     } catch (reason) { showError(reason); }
   }
 
+  async function createDataBackup() {
+    setBusy(true);
+    try {
+      const result = await window.rsMall.createBackup();
+      if (!result.canceled) setNotice("Backup saved successfully.");
+    } catch (reason) { showError(reason); }
+    finally { setBusy(false); }
+  }
+
+  async function restoreDataBackup() {
+    setBusy(true);
+    try {
+      const result = await window.rsMall.restoreBackup();
+      if (result.canceled) return;
+      await Promise.all([loadCatalog(productQuery), loadDashboard(), loadSettings(), loadSales()]);
+      setCart([]);
+      setDiscount("0");
+      setReceived("");
+      setCustomerName("");
+      setCustomerPhone("");
+      setNotice("Backup restored successfully.");
+    } catch (reason) { showError(reason); }
+    finally { setBusy(false); }
+  }
+
   async function deleteItem(kind, item) {
     if (!window.confirm(`Delete ${kind === "product" ? item.name : item.name}? This cannot be undone.`)) return;
     try {
@@ -295,7 +320,7 @@ function App() {
           {page === "Categories" && <CategoriesView {...{ categories, setCategoryDialog, deleteItem }} />}
           {page === "Sales history" && <SalesView {...{ sales, saleQuery, setSaleQuery, fromDate, setFromDate, toDate, setToDate, loadSales, setInvoice, showError, money }} />}
           {page === "Daily summary" && <DailySummaryView summary={summary} money={money} />}
-          {page === "Settings" && <SettingsView settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} saveShopSettings={saveShopSettings} />}
+          {page === "Settings" && <SettingsView settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} saveShopSettings={saveShopSettings} createBackup={createDataBackup} restoreBackup={restoreDataBackup} busy={busy} />}
         </Box>
       </Box>
       <Modal open={Boolean(categoryDialog)} title={categoryDialog?.id ? "Edit category" : "Add category"} onClose={() => setCategoryDialog(null)} onSubmit={saveCategory}>

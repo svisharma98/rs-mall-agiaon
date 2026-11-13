@@ -18,5 +18,7 @@ contextBridge.exposeInMainWorld("rsMall", Object.freeze({
   listSales: invoke("sales:list"),
   getSale: invoke("sales:get"),
   getSettings: invoke("settings:get"),
-  saveSettings: invoke("settings:save")
+  saveSettings: invoke("settings:save"),
+  createBackup: invoke("data:backup"),
+  restoreBackup: invoke("data:restore")
 }));

@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
-const { initializeDatabase } = require("../electron/database.cjs");
+const { createBackup, initializeDatabase, restoreBackup } = require("../electron/database.cjs");
 const { createServices } = require("../electron/services.cjs");
 
 test("admin setup, catalog, settings, and atomic sale lifecycle", (t) => {
@@ -66,4 +66,45 @@ test("admin setup, catalog, settings, and atomic sale lifecycle", (t) => {
   assert.equal(summary.customers, 1);
   assert.equal(summary.payments.Cash, 20.9);
   assert.equal(services.sales.list({ search: completed.invoice_number }).length, 1);
+});
+
+test("database backups restore store data and reject the active database", async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rs-mall-backup-test-"));
+  const db = initializeDatabase(directory);
+  const backupPath = path.join(directory, "store-backup.sqlite");
+  t.after(() => {
+    db.close();
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+
+  const services = createServices(db);
+  services.auth.setup({ username: "admin", password: "secure-password" });
+  services.catalog.saveCategory({ name: "Original category" });
+  const category = services.catalog.listCategories()[0];
+  services.catalog.saveProduct({
+    name: "Backup product", code: "B-01", category_id: category.id,
+    purchase_price: 5, selling_price: 10, stock_quantity: 5
+  });
+  const product = services.catalog.listProducts()[0];
+  services.sales.complete({
+    items: [{ id: product.id, quantity: 2 }],
+    payment_method: "Cash",
+    amount_received: 20,
+    customer_name: "Backup customer",
+    customer_phone: "9876543210"
+  });
+  services.settings.save({ shop_name: "Original shop" });
+  await createBackup(db, backupPath);
+
+  services.catalog.saveCategory({ name: "Later category" });
+  services.settings.save({ shop_name: "Changed shop" });
+  restoreBackup(db, backupPath, path.join(directory, "rs-mall.sqlite"));
+
+  assert.deepEqual(services.catalog.listCategories().map(({ name }) => name), ["Original category"]);
+  assert.equal(services.catalog.listProducts()[0].stock_quantity, 3);
+  assert.equal(services.sales.list({}).length, 1);
+  assert.equal(services.sales.get(1).customer_name, "Backup customer");
+  assert.equal(services.settings.get().shop_name, "Original shop");
+  assert.equal(services.auth.login({ username: "admin", password: "secure-password" }).username, "admin");
+  assert.throws(() => restoreBackup(db, path.join(directory, "rs-mall.sqlite"), path.join(directory, "rs-mall.sqlite")), /currently in use/);
 });

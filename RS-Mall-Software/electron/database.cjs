@@ -81,4 +81,53 @@ function initializeDatabase(userDataPath) {
   return db;
 }
 
-module.exports = { initializeDatabase };
+const restoreOrder = ["categories", "customers", "users", "settings", "products", "sales", "sale_items", "payments"];
+const clearOrder = ["sale_items", "payments", "sales", "products", "customers", "categories", "settings", "users"];
+const expectedColumns = {
+  users: ["id", "username", "password_hash", "created_at"],
+  categories: ["id", "name", "created_at"],
+  products: ["id", "name", "code", "barcode", "category_id", "purchase_price", "selling_price", "stock_quantity", "created_at"],
+  customers: ["id", "name", "phone", "created_at"],
+  sales: ["id", "invoice_number", "customer_id", "subtotal", "discount", "tax", "total", "created_at"],
+  sale_items: ["id", "sale_id", "product_id", "product_name", "product_code", "quantity", "unit_price", "line_total"],
+  payments: ["id", "sale_id", "method", "amount", "created_at"],
+  settings: ["key", "value"]
+};
+
+async function createBackup(db, destination) {
+  await db.backup(destination);
+}
+
+function restoreBackup(db, sourcePath, currentDatabasePath) {
+  const resolvedSource = fs.realpathSync(sourcePath);
+  const resolvedCurrent = fs.realpathSync(currentDatabasePath);
+  if (resolvedSource === resolvedCurrent) throw new Error("Choose a backup file, not the database currently in use.");
+
+  const source = new Database(resolvedSource, { readonly: true, fileMustExist: true });
+  try {
+    const integrity = source.pragma("integrity_check");
+    if (integrity.length !== 1 || integrity[0].integrity_check !== "ok") {
+      throw new Error("This backup file is damaged and cannot be restored.");
+    }
+    for (const [table, columns] of Object.entries(expectedColumns)) {
+      const actualColumns = source.pragma(`table_info(${table})`).map(({ name }) => name);
+      if (actualColumns.length !== columns.length || actualColumns.some((name, index) => name !== columns[index])) {
+        throw new Error("This file is not a compatible RS-Mall backup.");
+      }
+    }
+  } finally {
+    source.close();
+  }
+
+  db.prepare("ATTACH DATABASE ? AS restore_source").run(resolvedSource);
+  try {
+    db.transaction(() => {
+      for (const table of clearOrder) db.exec(`DELETE FROM main.${table}`);
+      for (const table of restoreOrder) db.exec(`INSERT INTO main.${table} SELECT * FROM restore_source.${table}`);
+    })();
+  } finally {
+    db.exec("DETACH DATABASE restore_source");
+  }
+}
+
+module.exports = { initializeDatabase, createBackup, restoreBackup };

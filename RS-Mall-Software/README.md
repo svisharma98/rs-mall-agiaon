@@ -43,7 +43,7 @@ The installer will be created in `release/` with a name like `RS-Mall-Billing-Se
 
 Run `npm ci` on the Windows build machine, not by copying `node_modules` from macOS or Linux. Before distributing an installer, install it on a Windows test machine, launch the app, complete first-run admin setup, and verify that product data and a test sale persist after restarting the app.
 
-The application works offline after installation. On first launch, create the administrator username and password shown by the app's first-run setup; there is no shared default password. Sales and settings are stored in the signed-in Windows user's application data folder, not in the installation folder. Uninstalling the app intentionally leaves that data in place. Back up the `rs-mall.sqlite` database file before replacing the computer or doing maintenance.
+The application works offline after installation. On first launch, create the administrator username and password shown by the app's first-run setup; there is no shared default password. Sales and settings are stored in the signed-in Windows user's application data folder, not in the installation folder. Uninstalling the app intentionally leaves that data in place. Before replacing or formatting the computer, sign in and use **Settings → Back up data** to save a backup file somewhere safe, such as an external drive or cloud storage. After installing RS-Mall again, sign in and choose **Settings → Restore from backup**. Restoring replaces the current data and administrator account with the selected backup.
 
 The installer is not code-signed. Windows may show a SmartScreen warning when it is first downloaded; code signing with a trusted publisher certificate can reduce that warning for future releases.
 
@@ -66,5 +66,6 @@ npm test
 - Atomic sale completion with invoice number, payment record, item snapshots, and stock deduction.
 - Invoice lookup/filtering and print or save as PDF using the system print dialog.
 - Store details and invoice footer settings; daily sales grouped by payment type.
+- Settings actions to back up all store data to a file and restore a validated backup.
 
 This version is scoped to Phase 1. Product images, multiple split tenders, customer management, advanced inventory workflows, and other later-phase functionality are not included.
